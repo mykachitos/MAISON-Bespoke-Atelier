@@ -8,18 +8,38 @@ import { formatPrice } from "../utils/format";
 import { getStorage, setStorage } from "../utils/storage";
 
 const STATUS_META = {
-  new: { label: "Новый", progress: 10 },
-  paid: { label: "Оплачен", progress: 35 },
-  shipped: { label: "Отправлен", progress: 70 },
-  done: { label: "Выполнен", progress: 100 },
-  cancelled: { label: "Отменён", progress: 0 },
+  new: {
+    label: "Новый",
+    progress: 18,
+    badge: "border-sky-400/30 bg-sky-400/10 text-sky-200",
+  },
+  paid: {
+    label: "Оплачен",
+    progress: 42,
+    badge: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+  },
+  shipped: {
+    label: "В пошиве",
+    progress: 74,
+    badge: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+  },
+  done: {
+    label: "Готов",
+    progress: 100,
+    badge: "border-gold/30 bg-gold/10 text-gold",
+  },
+  cancelled: {
+    label: "Отменен",
+    progress: 0,
+    badge: "border-red-500/30 bg-red-500/10 text-red-300",
+  },
 };
 
 const MEASUREMENT_FIELDS = [
   ["height", "Рост"],
   ["chest", "Грудь"],
   ["waist", "Талия"],
-  ["hips", "Бёдра"],
+  ["hips", "Бедра"],
   ["shoulders", "Плечи"],
   ["sleeve", "Рукав"],
   ["inseam", "Внутренний шов"],
@@ -43,14 +63,18 @@ const TAB_IDS = new Set([
   "preferences",
 ]);
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function getInitials(name) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "К";
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "К"
+  );
 }
 
 function formatDate(value) {
@@ -85,19 +109,11 @@ function mergeOrders(remoteOrders, localOrders) {
     orderMap.set(String(order.id), order);
   });
 
-  return Array.from(orderMap.values()).sort(
-    (a, b) => normalizeOrderDate(b) - normalizeOrderDate(a)
-  );
+  return Array.from(orderMap.values()).sort((a, b) => normalizeOrderDate(b) - normalizeOrderDate(a));
 }
 
 export default function AccountPage() {
-  const {
-    user,
-    loading,
-    updateProfile,
-    updateMeasurements,
-    updatePreferences,
-  } = useAuth();
+  const { user, loading, updateProfile, updateMeasurements, updatePreferences } = useAuth();
   const { cart, removeFromCart, clearCart, total } = useCart();
   const { products } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -105,17 +121,14 @@ export default function AccountPage() {
 
   const [tab, setTab] = useState(() => {
     const requestedTab = searchParams.get("tab");
-
-    if (requestedTab && TAB_IDS.has(requestedTab)) {
-      return requestedTab;
-    }
-
+    if (requestedTab && TAB_IDS.has(requestedTab)) return requestedTab;
     return cart.length > 0 ? "cart" : "overview";
   });
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [paymentStep, setPaymentStep] = useState("");
   const [notice, setNotice] = useState(null);
   const [profile, setProfile] = useState({
     username: "",
@@ -123,12 +136,16 @@ export default function AccountPage() {
     phone: "",
     address: "",
   });
+  const [security, setSecurity] = useState({
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [measurements, setMeasurements] = useState({});
   const [preferences, setPreferences] = useState(EMPTY_PREFERENCES);
 
   useEffect(() => {
     const requestedTab = searchParams.get("tab");
-
     if (requestedTab && TAB_IDS.has(requestedTab) && requestedTab !== tab) {
       setTab(requestedTab);
     }
@@ -142,6 +159,11 @@ export default function AccountPage() {
       email: user.email || "",
       phone: user.phone || "",
       address: user.address || "",
+    });
+    setSecurity({
+      email: user.email || "",
+      password: "",
+      confirmPassword: "",
     });
     setMeasurements(user.measurements || {});
     setPreferences({ ...EMPTY_PREFERENCES, ...(user.preferences || {}) });
@@ -166,7 +188,7 @@ export default function AccountPage() {
       .catch(() => {
         if (!ignore) {
           setOrders(localOrders);
-          setOrdersError("Backend недоступен. Показываем локально сохранённые заказы.");
+          setOrdersError("Сервер заказов сейчас недоступен. Показываем локально сохраненную историю.");
         }
       })
       .finally(() => {
@@ -178,15 +200,17 @@ export default function AccountPage() {
     };
   }, [user, localOrdersKey]);
 
-  const productsById = useMemo(() => {
-    return new Map(products.map((product) => [Number(product.id), product]));
-  }, [products]);
+  const productsById = useMemo(
+    () => new Map(products.map((product) => [Number(product.id), product])),
+    [products]
+  );
 
   const displayName = user?.name || user?.username || "Клиент";
   const completedMeasurements = MEASUREMENT_FIELDS.filter(([key]) =>
     String(measurements[key] || "").trim()
   ).length;
   const activeOrders = orders.filter((order) => !["done", "cancelled"].includes(order.status)).length;
+  const paidOrders = orders.filter((order) => order.status === "paid").length;
   const lastOrder = orders[0];
 
   const tabs = [
@@ -205,12 +229,10 @@ export default function AccountPage() {
 
   const openTab = (nextTab) => {
     setTab(nextTab);
-
     if (nextTab === "overview") {
       setSearchParams({});
       return;
     }
-
     setSearchParams({ tab: nextTab });
   };
 
@@ -224,7 +246,7 @@ export default function AccountPage() {
 
     try {
       await updateProfile(profile);
-      setNotice({ type: "success", text: "Профиль сохранён." });
+      setNotice({ type: "success", text: "Профиль сохранен." });
     } catch {
       setNotice({ type: "error", text: "Не удалось сохранить профиль." });
     }
@@ -240,76 +262,72 @@ export default function AccountPage() {
     setNotice({ type: "success", text: "Пожелания сохранены." });
   };
 
+  const persistLocalOrder = (localOrder) => {
+    const existingLocalOrders = getStorage(localOrdersKey, []);
+    const nextLocalOrders = mergeOrders([], [localOrder, ...existingLocalOrders]);
+    setStorage(localOrdersKey, nextLocalOrders);
+    setOrders((current) => mergeOrders(current, [localOrder]));
+  };
+
   const checkout = async () => {
     if (!cart.length) return;
 
     setCheckoutLoading(true);
+    setPaymentStep("Проверяем детали заказа...");
     setNotice(null);
 
-    try {
-      const created = await api.createOrder({
-        address: profile.address,
-        items: cart.map((item) => ({
-          product: item.productId ? Number(item.productId) : null,
-          quantity: item.quantity || 1,
-          price: Number(item.price),
-          editor_data: {
-            name: item.name,
-            config: item.config || {},
-            measurements,
-            preferences,
-            phone: profile.phone,
-          },
-        })),
-      });
+    await wait(700);
+    setPaymentStep("Имитируем оплату...");
+    await wait(900);
+    setPaymentStep("Оплата прошла. Формируем заказ...");
+    await wait(700);
 
-      setOrders((current) => [created, ...current]);
-      clearCart();
-      openTab("orders");
-      setNotice({ type: "success", text: "Заказ оформлен и добавлен в историю." });
-    } catch {
-      const localOrder = {
-        id: `LOCAL-${Date.now()}`,
-        status: "new",
-        total: total,
-        address: profile.address,
-        created_at: new Date().toISOString(),
-        items: cart.map((item, index) => ({
-          id: `${Date.now()}-${index}`,
-          product: item.productId ? Number(item.productId) : null,
-          quantity: item.quantity || 1,
-          price: Number(item.price),
-          editor_data: {
-            name: item.name,
-            config: item.config || {},
-            measurements,
-            preferences,
-            phone: profile.phone,
-          },
-        })),
-      };
+    const localOrder = {
+      id: `PAID-${Date.now()}`,
+      status: "paid",
+      total,
+      address: profile.address,
+      created_at: new Date().toISOString(),
+      payment_mode: "fake-success",
+      items: cart.map((item, index) => ({
+        id: `${Date.now()}-${index}`,
+        product: item.productId ? Number(item.productId) : null,
+        quantity: item.quantity || 1,
+        price: Number(item.price),
+        editor_data: {
+          name: item.name,
+          config: item.config || {},
+          measurements,
+          preferences,
+          phone: profile.phone,
+          payment_status: "paid",
+        },
+      })),
+    };
 
-      const existingLocalOrders = getStorage(localOrdersKey, []);
-      const nextLocalOrders = mergeOrders([], [localOrder, ...existingLocalOrders]);
-      setStorage(localOrdersKey, nextLocalOrders);
-      setOrders((current) => mergeOrders(current, [localOrder]));
-      clearCart();
-      openTab("orders");
-      setNotice({
-        type: "success",
-        text: "Backend сейчас не ответил, поэтому заказ сохранён локально и уже виден в истории.",
-      });
-    } finally {
-      setCheckoutLoading(false);
-    }
+    persistLocalOrder(localOrder);
+
+    api
+      .createOrder({
+        address: profile.address,
+        items: localOrder.items.map((item) => ({
+          product: item.product,
+          quantity: item.quantity,
+          price: item.price,
+          editor_data: item.editor_data,
+        })),
+      })
+      .catch(() => {});
+
+    clearCart();
+    setPaymentStep("");
+    setCheckoutLoading(false);
+    openTab("orders");
+    setNotice({ type: "success", text: "Оплата прошла успешно. Заказ добавлен в историю." });
   };
 
   if (loading) {
-    return (
-      <div className="container-page py-20 text-center text-muted">
-        Загрузка аккаунта...
-      </div>
-    );
+    return <div className="container-page py-20 text-center text-muted">Загрузка аккаунта...</div>;
   }
 
   if (!user) {
@@ -331,7 +349,7 @@ export default function AccountPage() {
 
   return (
     <div className="container-page py-10">
-      <div className="mb-8 grid gap-5 lg:grid-cols-[1fr_320px] lg:items-end">
+      <div className="mb-8 grid gap-5 lg:grid-cols-[1fr_340px] lg:items-end">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gold text-xl font-bold text-bg">
             {getInitials(displayName)}
@@ -344,18 +362,9 @@ export default function AccountPage() {
         </div>
 
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="card p-4">
-            <p className="text-2xl font-semibold text-gold">{activeOrders}</p>
-            <p className="mt-1 text-xs text-muted">Активных</p>
-          </div>
-          <div className="card p-4">
-            <p className="text-2xl font-semibold text-gold">{cart.length}</p>
-            <p className="mt-1 text-xs text-muted">В корзине</p>
-          </div>
-          <div className="card p-4">
-            <p className="text-2xl font-semibold text-gold">{completedMeasurements}</p>
-            <p className="mt-1 text-xs text-muted">Мерок</p>
-          </div>
+          <StatCard value={activeOrders} label="Активных" />
+          <StatCard value={paidOrders} label="Оплачено" />
+          <StatCard value={completedMeasurements} label="Мерок" />
         </div>
       </div>
 
@@ -409,22 +418,9 @@ export default function AccountPage() {
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border border-gold/15 bg-bg/50 p-4">
-                  <p className="text-sm text-muted">Корзина</p>
-                  <p className="mt-2 text-xl text-gold">{money(total)}</p>
-                </div>
-                <div className="rounded-xl border border-gold/15 bg-bg/50 p-4">
-                  <p className="text-sm text-muted">Последний заказ</p>
-                  <p className="mt-2 text-xl text-gold">
-                    {lastOrder ? `#${lastOrder.id}` : "Пока нет"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-gold/15 bg-bg/50 p-4">
-                  <p className="text-sm text-muted">Профиль</p>
-                  <p className="mt-2 text-xl text-gold">
-                    {profile.phone ? "Заполнен" : "Нужен телефон"}
-                  </p>
-                </div>
+                <InfoTile label="Корзина" value={money(total)} />
+                <InfoTile label="Последний заказ" value={lastOrder ? `#${lastOrder.id}` : "Пока нет"} />
+                <InfoTile label="Профиль" value={profile.phone ? "Заполнен" : "Нужен телефон"} />
               </div>
             </section>
 
@@ -439,42 +435,15 @@ export default function AccountPage() {
                 </button>
               </div>
 
-              <div className="mt-5 space-y-3">
+              <div className="mt-5 space-y-4">
                 {ordersLoading ? (
                   <p className="text-muted">Загрузка заказов...</p>
                 ) : orders.length === 0 ? (
                   <p className="text-muted">Заказов пока нет. Соберите костюм в конструкторе.</p>
                 ) : (
-                  orders.slice(0, 3).map((order) => {
-                    const status = STATUS_META[order.status] || STATUS_META.new;
-                    return (
-                      <div
-                        key={order.id}
-                        className="rounded-xl border border-gold/15 bg-bg/50 p-4"
-                      >
-                        <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                          <div>
-                            <p className="text-xs text-muted">
-                              #{order.id} · {formatDate(order.created_at)}
-                            </p>
-                            <p className="mt-1 font-medium">
-                              {order.items?.map(itemTitle).join(", ") || "Заказ"}
-                            </p>
-                          </div>
-                          <div className="sm:text-right">
-                            <p className="text-gold">{money(order.total)}</p>
-                            <p className="text-sm text-muted">{status.label}</p>
-                          </div>
-                        </div>
-                        <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                          <div
-                            className="h-full rounded-full bg-gold"
-                            style={{ width: `${status.progress}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
+                  orders.slice(0, 3).map((order) => (
+                    <OrderCard key={order.id} order={order} itemTitle={itemTitle} compact />
+                  ))
                 )}
               </div>
             </section>
@@ -515,7 +484,16 @@ export default function AccountPage() {
       )}
 
       {tab === "orders" && (
-        <section className="space-y-4">
+        <section className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-3">
+            <InfoTile label="Всего заказов" value={String(orders.length)} />
+            <InfoTile label="Оплачено" value={String(paidOrders)} />
+            <InfoTile
+              label="Последняя дата"
+              value={lastOrder ? formatDate(lastOrder.created_at) : "Пока нет"}
+            />
+          </div>
+
           {ordersLoading ? (
             <div className="card p-10 text-center text-muted">Загрузка заказов...</div>
           ) : orders.length === 0 ? (
@@ -526,59 +504,13 @@ export default function AccountPage() {
               </Link>
             </div>
           ) : (
-            orders.map((order) => {
-              const status = STATUS_META[order.status] || STATUS_META.new;
-              return (
-                <article key={order.id} className="card p-5">
-                  <div className="flex flex-col justify-between gap-4 md:flex-row">
-                    <div>
-                      <p className="text-xs text-muted">
-                        Заказ #{order.id} · {formatDate(order.created_at)}
-                      </p>
-                      <h3 className="mt-2 font-serif text-2xl">
-                        {order.items?.length ? `${order.items.length} поз.` : "Заказ"}
-                      </h3>
-                      {order.address && (
-                        <p className="mt-1 text-sm text-muted">Адрес: {order.address}</p>
-                      )}
-                    </div>
-                    <div className="md:text-right">
-                      <p className="font-serif text-3xl text-gold">{money(order.total)}</p>
-                      <p className="mt-1 text-sm text-muted">{status.label}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full rounded-full bg-gold"
-                      style={{ width: `${status.progress}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-5 grid gap-3 md:grid-cols-2">
-                    {(order.items || []).map((item) => (
-                      <div key={item.id} className="rounded-xl border border-gold/15 bg-bg/50 p-4">
-                        <p className="font-medium">{itemTitle(item)}</p>
-                        <p className="mt-1 text-sm text-muted">
-                          {item.quantity} шт. · {money(item.price)}
-                        </p>
-                        {item.editor_data?.config && Object.keys(item.editor_data.config).length > 0 && (
-                          <p className="mt-2 text-xs text-muted">
-                            Конфигурация сохранена в заказе.
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              );
-            })
+            orders.map((order) => <OrderCard key={order.id} order={order} itemTitle={itemTitle} />)
           )}
         </section>
       )}
 
       {tab === "cart" && (
-        <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
           <div className="space-y-4">
             {cart.length === 0 ? (
               <div className="card p-10 text-center">
@@ -603,14 +535,9 @@ export default function AccountPage() {
                     <p className="mt-1 text-sm text-muted">Количество: {item.quantity || 1}</p>
                     {item.config && (
                       <p className="mt-2 text-xs text-muted">
-                        {[
-                          item.config.fabric,
-                          item.config.color,
-                          item.config.pattern,
-                          item.config.style,
-                        ]
+                        {[item.config.fabric, item.config.color, item.config.pattern, item.config.style]
                           .filter(Boolean)
-                          .join(" · ")}
+                          .join(" • ")}
                       </p>
                     )}
                   </div>
@@ -629,10 +556,11 @@ export default function AccountPage() {
           </div>
 
           <aside className="card h-fit p-6">
-            <p className="text-xs uppercase tracking-[0.22em] text-gold">Оформление</p>
+            <p className="text-xs uppercase tracking-[0.22em] text-gold">Оплата и оформление</p>
+
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex justify-between gap-4">
-                <span className="text-muted">Позиций</span>
+                <span className="text-muted">Позиции</span>
                 <span>{cart.length}</span>
               </p>
               <p className="flex justify-between gap-4">
@@ -645,17 +573,26 @@ export default function AccountPage() {
               </p>
             </div>
 
-            <div className="mt-6 border-t border-gold/15 pt-5">
+            <div className="mt-6 rounded-2xl border border-gold/10 bg-white/5 p-4">
               <p className="text-sm text-muted">Итого</p>
               <p className="mt-1 font-serif text-4xl text-gold">{money(total)}</p>
+              <p className="mt-2 text-xs text-muted">
+                Ниже идет демонстрационная оплата: после нажатия заказ сразу считается успешно оплаченным.
+              </p>
             </div>
+
+            {paymentStep && (
+              <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+                {paymentStep}
+              </div>
+            )}
 
             <button
               onClick={checkout}
               disabled={!cart.length || checkoutLoading}
               className="btn-primary mt-6 w-full"
             >
-              {checkoutLoading ? "Оформляем..." : "Оформить заказ"}
+              {checkoutLoading ? "Оплачиваем..." : "Оплатить и оформить"}
             </button>
             <button
               onClick={clearCart}
@@ -669,47 +606,110 @@ export default function AccountPage() {
       )}
 
       {tab === "profile" && (
-        <section className="card max-w-2xl p-6">
-          <p className="text-xs uppercase tracking-[0.22em] text-gold">Данные аккаунта</p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="label">Логин</label>
-              <input
-                className="input"
-                value={profile.username}
-                onChange={(e) => setProfile({ ...profile, username: e.target.value })}
-              />
+        <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+          <section className="card p-6">
+            <p className="text-xs uppercase tracking-[0.22em] text-gold">Основные данные</p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label">Логин</label>
+                <input
+                  className="input"
+                  value={profile.username}
+                  onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">Телефон</label>
+                <input
+                  className="input"
+                  value={profile.phone}
+                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label">Адрес</label>
+                <input
+                  className="input"
+                  value={profile.address}
+                  onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                />
+              </div>
             </div>
-            <div>
-              <label className="label">Email</label>
-              <input
-                className="input"
-                type="email"
-                value={profile.email}
-                onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-              />
+            <button onClick={saveProfile} className="btn-primary mt-6">
+              Сохранить профиль
+            </button>
+          </section>
+
+          <section className="card p-6">
+            <p className="text-xs uppercase tracking-[0.22em] text-gold">Почта и пароль</p>
+            <div className="mt-6 grid gap-4">
+              <div>
+                <label className="label">Новая почта</label>
+                <input
+                  className="input"
+                  type="email"
+                  value={security.email}
+                  onChange={(e) => setSecurity({ ...security, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">Новый пароль</label>
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="Оставьте пустым, если менять не нужно"
+                  value={security.password}
+                  onChange={(e) => setSecurity({ ...security, password: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">Повторите пароль</label>
+                <input
+                  className="input"
+                  type="password"
+                  value={security.confirmPassword}
+                  onChange={(e) => setSecurity({ ...security, confirmPassword: e.target.value })}
+                />
+              </div>
             </div>
-            <div>
-              <label className="label">Телефон</label>
-              <input
-                className="input"
-                value={profile.phone}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Адрес</label>
-              <input
-                className="input"
-                value={profile.address}
-                onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-              />
-            </div>
-          </div>
-          <button onClick={saveProfile} className="btn-primary mt-6">
-            Сохранить профиль
-          </button>
-        </section>
+            <button
+              onClick={async () => {
+                setNotice(null);
+
+                if (!security.email.trim()) {
+                  setNotice({ type: "error", text: "Введите email." });
+                  return;
+                }
+
+                if (security.password && security.password !== security.confirmPassword) {
+                  setNotice({ type: "error", text: "Пароли не совпадают." });
+                  return;
+                }
+
+                if (security.password && security.password.length < 6) {
+                  setNotice({ type: "error", text: "Пароль должен быть не короче 6 символов." });
+                  return;
+                }
+
+                try {
+                  await updateProfile({
+                    ...profile,
+                    email: security.email,
+                    password: security.password,
+                  });
+                  setProfile((current) => ({ ...current, email: security.email }));
+                  setSecurity((current) => ({ ...current, password: "", confirmPassword: "" }));
+                  setNotice({ type: "success", text: "Почта и пароль обновлены." });
+                } catch {
+                  setNotice({ type: "error", text: "Не удалось обновить почту или пароль." });
+                }
+              }}
+              className="btn-primary mt-6"
+            >
+              Обновить доступ
+            </button>
+          </section>
+        </div>
       )}
 
       {tab === "measurements" && (
@@ -735,9 +735,7 @@ export default function AccountPage() {
                     className="input pr-12"
                     inputMode="decimal"
                     value={measurements[key] || ""}
-                    onChange={(e) =>
-                      setMeasurements({ ...measurements, [key]: e.target.value })
-                    }
+                    onChange={(e) => setMeasurements({ ...measurements, [key]: e.target.value })}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-muted">
                     см
@@ -752,7 +750,7 @@ export default function AccountPage() {
       {tab === "preferences" && (
         <section className="card max-w-3xl p-6">
           <p className="text-xs uppercase tracking-[0.22em] text-gold">Пожелания</p>
-          <h2 className="mt-2 font-serif text-3xl">Техническое задание ателье</h2>
+          <h2 className="mt-2 font-serif text-3xl">Техническое задание для ателье</h2>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div>
@@ -818,5 +816,100 @@ export default function AccountPage() {
         </section>
       )}
     </div>
+  );
+}
+
+function StatCard({ value, label }) {
+  return (
+    <div className="card p-4">
+      <p className="text-2xl font-semibold text-gold">{value}</p>
+      <p className="mt-1 text-xs text-muted">{label}</p>
+    </div>
+  );
+}
+
+function InfoTile({ label, value }) {
+  return (
+    <div className="rounded-xl border border-gold/15 bg-bg/50 p-4">
+      <p className="text-sm text-muted">{label}</p>
+      <p className="mt-2 text-xl text-gold">{value}</p>
+    </div>
+  );
+}
+
+function OrderCard({ order, itemTitle, compact = false }) {
+  const status = STATUS_META[order.status] || STATUS_META.new;
+
+  return (
+    <article className="card overflow-hidden">
+      <div className="border-b border-gold/10 bg-white/[0.02] p-5">
+        <div className="flex flex-col justify-between gap-4 md:flex-row">
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-xs text-muted">Заказ #{order.id}</p>
+              <span className={`rounded-full border px-3 py-1 text-xs ${status.badge}`}>
+                {status.label}
+              </span>
+              {order.payment_mode === "fake-success" && (
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/8 px-3 py-1 text-xs text-emerald-200">
+                  Онлайн-оплата
+                </span>
+              )}
+            </div>
+            <h3 className="mt-3 font-serif text-3xl leading-none">
+              {order.items?.length ? `${order.items.length} позиций` : "Заказ"}
+            </h3>
+            <p className="mt-2 text-sm text-muted">{formatDate(order.created_at)}</p>
+            {order.address && <p className="mt-1 text-sm text-muted">Адрес: {order.address}</p>}
+          </div>
+
+          <div className="md:text-right">
+            <p className="font-serif text-3xl text-gold">{money(order.total)}</p>
+            <p className="mt-2 text-sm text-muted">Этап пошива</p>
+          </div>
+        </div>
+
+        <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-gold" style={{ width: `${status.progress}%` }} />
+        </div>
+      </div>
+
+      <div className={`grid gap-3 p-5 ${compact ? "md:grid-cols-1" : "md:grid-cols-2"}`}>
+        {(order.items || []).map((item) => (
+          <div key={item.id} className="rounded-2xl border border-gold/12 bg-bg/50 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-medium">{itemTitle(item)}</p>
+                <p className="mt-1 text-sm text-muted">
+                  {item.quantity} шт. • {money(item.price)}
+                </p>
+              </div>
+              <span className="text-xs text-muted">#{item.id}</span>
+            </div>
+
+            {item.editor_data?.config && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[
+                  item.editor_data.config.fabric,
+                  item.editor_data.config.color,
+                  item.editor_data.config.pattern,
+                  item.editor_data.config.style,
+                ]
+                  .filter(Boolean)
+                  .slice(0, 4)
+                  .map((value) => (
+                    <span
+                      key={value}
+                      className="rounded-full border border-gold/10 bg-white/5 px-3 py-1 text-xs text-muted"
+                    >
+                      {value}
+                    </span>
+                  ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }

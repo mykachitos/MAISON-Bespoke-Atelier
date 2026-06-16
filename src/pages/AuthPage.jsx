@@ -8,9 +8,9 @@ export default function AuthPage() {
 
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({
-    username: "ivan",
-    email: "ivan@example.com",
-    password: "123456",
+    username: "",
+    email: "",
+    password: "",
     confirm: "",
   });
   const [error, setError] = useState("");
@@ -23,8 +23,8 @@ export default function AuthPage() {
     const username = form.username.trim();
     const email = form.email.trim();
 
-    if (!username) return setError("Введите логин");
-    if (form.password.length < 6) return setError("Пароль минимум 6 символов");
+    if (!username) return setError("Введите логин.");
+    if (form.password.length < 6) return setError("Пароль должен быть не короче 6 символов.");
 
     try {
       setSubmitting(true);
@@ -32,8 +32,8 @@ export default function AuthPage() {
       if (mode === "login") {
         await login(username, form.password);
       } else {
-        if (!email) return setError("Введите email");
-        if (form.password !== form.confirm) return setError("Пароли не совпадают");
+        if (!email) return setError("Введите email.");
+        if (form.password !== form.confirm) return setError("Пароли не совпадают.");
         await register(username, email, form.password);
       }
 
@@ -53,14 +53,13 @@ export default function AuthPage() {
     <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">
       <form onSubmit={submit} className="card w-full max-w-md p-8 shadow-gold">
         <div className="mb-7 text-center">
-          <p className="text-xs uppercase tracking-[0.25em] text-gold">
-            Личный кабинет
-          </p>
+          <p className="text-xs uppercase tracking-[0.25em] text-gold">Личный кабинет</p>
           <h1 className="mt-3 font-serif text-4xl">
             {mode === "login" ? "Вход" : "Регистрация"}
           </h1>
           <p className="mt-2 text-sm text-muted">
-            Для теста используйте существующего пользователя или создайте нового.
+            Войдите в существующий аккаунт или создайте новый, чтобы сохранить заказы,
+            мерки и пожелания.
           </p>
         </div>
 
@@ -75,6 +74,7 @@ export default function AuthPage() {
           <input
             className="input"
             autoComplete="username"
+            placeholder="Введите логин"
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
           />
@@ -87,6 +87,7 @@ export default function AuthPage() {
               className="input"
               type="email"
               autoComplete="email"
+              placeholder="name@example.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
@@ -99,6 +100,7 @@ export default function AuthPage() {
             className="input"
             type="password"
             autoComplete={mode === "login" ? "current-password" : "new-password"}
+            placeholder="Минимум 6 символов"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
@@ -111,6 +113,7 @@ export default function AuthPage() {
               className="input"
               type="password"
               autoComplete="new-password"
+              placeholder="Повторите пароль"
               value={form.confirm}
               onChange={(e) => setForm({ ...form, confirm: e.target.value })}
             />

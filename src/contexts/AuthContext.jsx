@@ -63,12 +63,18 @@ export function AuthProvider({ children }) {
   const updateProfile = async (profile) => {
     if (!user) return null;
 
-    const updated = await api.updateMe({
+    const payload = {
       username: (profile.username || user.username || '').trim(),
       email: (profile.email || '').trim(),
       phone: (profile.phone || '').trim(),
       address: (profile.address || '').trim(),
-    });
+    };
+
+    if ((profile.password || '').trim()) {
+      payload.password = profile.password.trim();
+    }
+
+    const updated = await api.updateMe(payload);
 
     const enriched = enrichUser(updated);
     setUser(enriched);

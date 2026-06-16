@@ -9,6 +9,7 @@ import ProductPage from "./pages/ProductPage";
 import EditorPage from "./pages/EditorPage";
 import AccountPage from "./pages/AccountPage";
 import AuthPage from "./pages/AuthPage";
+import AboutPage from "./pages/AboutPage";
 
 function SiteLayout() {
   return (
@@ -21,6 +22,7 @@ function SiteLayout() {
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/catalog/:id" element={<ProductPage />} />
           <Route path="/editor" element={<EditorPage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="*" element={<NotFound />} />

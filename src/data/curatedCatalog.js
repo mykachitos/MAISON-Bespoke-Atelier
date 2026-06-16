@@ -1,3 +1,18 @@
+const IMG_HEATHERED_NAVY =
+  "https://themoderngroom.com/cdn/shop/files/TMG_HeatheredNavy-Hero_300x.jpg?v=1713982097";
+const IMG_MIDNIGHT_BLUE =
+  "https://themoderngroom.com/cdn/shop/files/TMG_MidnightBlue-Hero_300x.jpg?v=1713992411";
+const IMG_LIGHT_GREY =
+  "https://themoderngroom.com/cdn/shop/files/TMG_LightGray-Hero_300x.jpg?v=1713982136";
+const IMG_CHARCOAL =
+  "https://themoderngroom.com/cdn/shop/files/TMG_Charcoal-Hero_300x.jpg?v=1713982038";
+const IMG_BLACK_SUIT =
+  "https://themoderngroom.com/cdn/shop/files/TMG_Black-Hero_300x.jpg?v=1713981801";
+const IMG_BLACK_TUX =
+  "https://themoderngroom.com/cdn/shop/files/TMG_BlackTuxedo-Hero_300x.jpg?v=1713981674";
+const IMG_TAN =
+  "https://themoderngroom.com/cdn/shop/files/TMG_Tan-Hero_300x.jpg?v=1713981949";
+
 export const CURATED_CATEGORIES = [
   { id: "classic", label: "Классика" },
   { id: "wedding", label: "Свадебные" },
@@ -23,14 +38,13 @@ export const CURATED_PRODUCTS = [
     accent: "#c9a84c",
     pattern: "solid",
     tag: "Bestseller",
-    image:
-      "https://images.unsplash.com/photo-1517677129300-07b130802f46?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_HEATHERED_NAVY,
   },
   {
     id: 1002,
     category: "tuxedo",
     fullName: "Черный вечерний смокинг",
-    fabric: "Шерсть с бархатистой фактурой",
+    fabric: "Шерсть с сатиновыми деталями",
     style: "Смокинг",
     description:
       "Черный смокинг для вечера и церемоний: строгий силуэт, контрастная сорочка и классическая подача black tie.",
@@ -41,8 +55,7 @@ export const CURATED_PRODUCTS = [
     accent: "#d7b56a",
     pattern: "solid",
     tag: "Evening",
-    image:
-      "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_BLACK_TUX,
   },
   {
     id: 1003,
@@ -59,8 +72,7 @@ export const CURATED_PRODUCTS = [
     accent: "#a73a3f",
     pattern: "pinstripe",
     tag: "Office",
-    image:
-      "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_MIDNIGHT_BLUE,
   },
   {
     id: 1004,
@@ -77,8 +89,7 @@ export const CURATED_PRODUCTS = [
     accent: "#f0e7d0",
     pattern: "solid",
     tag: "Wedding",
-    image:
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_LIGHT_GREY,
   },
   {
     id: 1005,
@@ -95,8 +106,7 @@ export const CURATED_PRODUCTS = [
     accent: "#b8b0a2",
     pattern: "stripes",
     tag: "New",
-    image:
-      "https://images.unsplash.com/photo-1592878940526-0214b0f374f6?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_CHARCOAL,
   },
   {
     id: 1006,
@@ -113,8 +123,7 @@ export const CURATED_PRODUCTS = [
     accent: "#d4af72",
     pattern: "checks",
     tag: "Tailored",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_BLACK_SUIT,
   },
   {
     id: 1007,
@@ -131,8 +140,7 @@ export const CURATED_PRODUCTS = [
     accent: "#d7c497",
     pattern: "solid",
     tag: "Ceremony",
-    image:
-      "https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_MIDNIGHT_BLUE,
   },
   {
     id: 1008,
@@ -149,8 +157,7 @@ export const CURATED_PRODUCTS = [
     accent: "#c9a84c",
     pattern: "solid",
     tag: "Signature",
-    image:
-      "https://images.unsplash.com/photo-1598808503746-f34cfb1f322b?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_BLACK_TUX,
   },
   {
     id: 1009,
@@ -167,8 +174,7 @@ export const CURATED_PRODUCTS = [
     accent: "#ead8ae",
     pattern: "windowpane",
     tag: "Summer",
-    image:
-      "https://images.unsplash.com/photo-1520367745676-40aa7d73f70d?auto=format&fit=crop&w=1200&q=80",
+    image: IMG_TAN,
   },
   {
     id: 1010,
@@ -203,6 +209,7 @@ export const CURATED_PRODUCTS = [
     accent: "#c7d96b",
     pattern: "pinstripe",
     tag: "Secret",
-    image: null,
+    image:
+      "https://static.wikia.nocookie.net/fnaf-fanon-animatronics/images/4/4b/Regular_Zombie.png/revision/latest?cb=20191224075216&path-prefix=ru",
   },
 ];

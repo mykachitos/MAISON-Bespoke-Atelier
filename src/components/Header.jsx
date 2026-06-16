@@ -17,7 +17,7 @@ export default function Header() {
       <div className="container-page flex h-20 items-center gap-8">
         <Link to="/" className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/30 bg-gold/10 text-xl text-gold">
-            ✦
+            ♦
           </div>
           <div>
             <span className="block font-serif text-2xl font-semibold tracking-[0.25em] text-gold">
@@ -30,9 +30,18 @@ export default function Header() {
         </Link>
 
         <nav className="hidden items-center gap-2 md:flex">
-          <NavLink to="/" end className={navClass}>Главная</NavLink>
-          <NavLink to="/catalog" className={navClass}>Каталог</NavLink>
-          <NavLink to="/editor" className={navClass}>Конструктор</NavLink>
+          <NavLink to="/" end className={navClass}>
+            Главная
+          </NavLink>
+          <NavLink to="/catalog" className={navClass}>
+            Каталог
+          </NavLink>
+          <NavLink to="/editor" className={navClass}>
+            Конструктор
+          </NavLink>
+          <NavLink to="/about" className={navClass}>
+            О нас
+          </NavLink>
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
@@ -42,7 +51,11 @@ export default function Header() {
                 {displayName.split(" ")[0]}
               </Link>
 
-              <Link to="/account?tab=cart" className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-gold/20 text-lg text-muted hover:bg-white/5 hover:text-gold">
+              <Link
+                to="/account?tab=cart"
+                className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-gold/20 text-lg text-muted transition hover:bg-white/5 hover:text-gold"
+                aria-label="Корзина"
+              >
                 <span className="text-sm font-semibold">К</span>
                 {cart.length > 0 && (
                   <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-xs font-bold text-bg">
@@ -56,7 +69,9 @@ export default function Header() {
               </button>
             </>
           ) : (
-            <Link to="/auth" className="btn-primary">Войти</Link>
+            <Link to="/auth" className="btn-primary">
+              Войти
+            </Link>
           )}
         </div>
       </div>
