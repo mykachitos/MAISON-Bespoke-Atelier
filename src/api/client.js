@@ -1,4 +1,12 @@
-const API_URL = (process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
+const REMOTE_API_URL = "https://maison-bespoke-atelier-backend.onrender.com/api";
+const LOCAL_API_URL = "http://127.0.0.1:8000/api";
+const isBrowser = typeof window !== "undefined";
+const isLocalHost =
+  isBrowser && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+const API_URL = (
+  process.env.REACT_APP_API_URL || (isLocalHost ? LOCAL_API_URL : REMOTE_API_URL)
+).replace(/\/$/, "");
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem("token");
