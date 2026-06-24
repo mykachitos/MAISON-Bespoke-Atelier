@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
+import MeasurementRequestSection from "../components/MeasurementRequestSection";
 import SuitSVG from "../components/SuitSVG";
 import { useCatalog } from "../contexts/CatalogContext";
 
@@ -188,6 +189,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <MeasurementRequestSection />
 
       <section className="container-page py-16">
         <div className="mb-8 flex items-end justify-between gap-6">

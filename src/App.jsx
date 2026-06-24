@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import CookieBanner from "./components/CookieBanner";
 
 import HomePage from "./pages/HomePage";
 import CatalogPage from "./pages/CatalogPage";
@@ -30,6 +31,7 @@ function SiteLayout() {
       </main>
 
       <Footer />
+      <CookieBanner />
     </div>
   );
 }

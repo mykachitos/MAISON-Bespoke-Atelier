@@ -43,4 +43,7 @@ export const api = {
 
   getOrders: () => request("/orders/"),
   createOrder: (data) => request("/orders/", { method: "POST", body: JSON.stringify(data) }),
+  getMeasurementRequests: () => request("/measurements/requests/"),
+  createMeasurementRequest: (data) =>
+    request("/measurements/requests/", { method: "POST", body: JSON.stringify(data) }),
 };

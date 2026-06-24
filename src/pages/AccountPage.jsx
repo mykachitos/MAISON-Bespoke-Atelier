@@ -129,6 +129,9 @@ export default function AccountPage() {
   const [ordersError, setOrdersError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [paymentStep, setPaymentStep] = useState("");
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentCode, setPaymentCode] = useState("");
+  const [paymentError, setPaymentError] = useState("");
   const [notice, setNotice] = useState(null);
   const [profile, setProfile] = useState({
     username: "",
@@ -269,9 +272,31 @@ export default function AccountPage() {
     setOrders((current) => mergeOrders(current, [localOrder]));
   };
 
+  const closePaymentModal = () => {
+    if (checkoutLoading) return;
+    setPaymentModalOpen(false);
+    setPaymentCode("");
+    setPaymentError("");
+    setPaymentStep("");
+  };
+
   const checkout = async () => {
     if (!cart.length) return;
 
+    setNotice(null);
+    if (!profile.phone.trim()) {
+      setNotice({ type: "error", text: "Перед оплатой укажите телефон в профиле." });
+      openTab("profile");
+      return;
+    }
+
+    setPaymentModalOpen(true);
+    setPaymentCode("");
+    setPaymentError("");
+    setPaymentStep("");
+    return;
+
+    // eslint-disable-next-line no-unreachable
     setCheckoutLoading(true);
     setPaymentStep("Проверяем детали заказа...");
     setNotice(null);
@@ -319,11 +344,76 @@ export default function AccountPage() {
       })
       .catch(() => {});
 
+    // eslint-disable-next-line no-unreachable
     clearCart();
     setPaymentStep("");
     setCheckoutLoading(false);
     openTab("orders");
     setNotice({ type: "success", text: "Оплата прошла успешно. Заказ добавлен в историю." });
+  };
+
+  const confirmDemoPayment = async () => {
+    if (paymentCode.trim() !== "123") {
+      setPaymentError("Для демонстрационной оплаты введите код 123.");
+      return;
+    }
+
+    setCheckoutLoading(true);
+    setPaymentError("");
+    setPaymentStep("Подключаемся к Sber Pay Demo...");
+    setNotice(null);
+
+    await wait(700);
+    setPaymentStep("Проверяем код подтверждения...");
+    await wait(900);
+    setPaymentStep("Оплата подтверждена. Формируем заказ...");
+    await wait(700);
+
+    const localOrder = {
+      id: `PAID-${Date.now()}`,
+      status: "paid",
+      total,
+      address: profile.address,
+      created_at: new Date().toISOString(),
+      payment_mode: "sber-demo",
+      items: cart.map((item, index) => ({
+        id: `${Date.now()}-${index}`,
+        product: item.productId ? Number(item.productId) : null,
+        quantity: item.quantity || 1,
+        price: Number(item.price),
+        editor_data: {
+          name: item.name,
+          config: item.config || {},
+          measurements,
+          preferences,
+          phone: profile.phone,
+          payment_status: "paid",
+          payment_mode: "sber-demo",
+        },
+      })),
+    };
+
+    persistLocalOrder(localOrder);
+
+    api
+      .createOrder({
+        address: profile.address,
+        items: localOrder.items.map((item) => ({
+          product: item.product,
+          quantity: item.quantity,
+          price: item.price,
+          editor_data: item.editor_data,
+        })),
+      })
+      .catch(() => {});
+
+    clearCart();
+    setPaymentModalOpen(false);
+    setPaymentCode("");
+    setPaymentStep("");
+    setCheckoutLoading(false);
+    openTab("orders");
+    setNotice({ type: "success", text: "Демо-оплата через Sber Pay прошла успешно. Заказ добавлен в историю." });
   };
 
   if (loading) {
@@ -605,6 +695,20 @@ export default function AccountPage() {
         </section>
       )}
 
+      {paymentModalOpen && (
+        <PaymentModal
+          total={money(total)}
+          phone={profile.phone}
+          paymentCode={paymentCode}
+          setPaymentCode={setPaymentCode}
+          paymentError={paymentError}
+          paymentStep={paymentStep}
+          checkoutLoading={checkoutLoading}
+          onClose={closePaymentModal}
+          onConfirm={confirmDemoPayment}
+        />
+      )}
+
       {tab === "profile" && (
         <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
           <section className="card p-6">
@@ -819,6 +923,95 @@ export default function AccountPage() {
   );
 }
 
+function PaymentModal({
+  total,
+  phone,
+  paymentCode,
+  setPaymentCode,
+  paymentError,
+  paymentStep,
+  checkoutLoading,
+  onClose,
+  onConfirm,
+}) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-[#2cbf6f]/30 bg-[#0f2318] shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
+        <div className="border-b border-white/10 bg-[linear-gradient(135deg,#22c55e,#11845b)] px-6 py-5 text-white">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/75">Sber Pay Demo</p>
+          <h3 className="mt-2 text-2xl font-semibold">Подтвердите оплату</h3>
+          <p className="mt-2 text-sm text-white/80">
+            Учебная версия оплаты для дипломной работы. Для успешного платежа введите код 123.
+          </p>
+        </div>
+
+        <div className="space-y-5 px-6 py-6">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/85">
+            <p className="flex items-center justify-between gap-4">
+              <span className="text-white/60">Сумма</span>
+              <span className="text-xl font-semibold text-white">{total}</span>
+            </p>
+            <p className="mt-3 flex items-center justify-between gap-4">
+              <span className="text-white/60">Телефон</span>
+              <span>{phone || "Не указан"}</span>
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#2cbf6f]/20 bg-[#123122] p-4 text-sm text-[#b8f5d2]">
+            Код для успешной оплаты: <span className="font-semibold text-white">123</span>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.22em] text-[#8ee4b4]">
+              Код подтверждения
+            </label>
+            <input
+              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-lg tracking-[0.35em] text-white outline-none transition focus:border-[#2cbf6f]"
+              inputMode="numeric"
+              maxLength={3}
+              placeholder="123"
+              value={paymentCode}
+              onChange={(e) => setPaymentCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
+              disabled={checkoutLoading}
+            />
+          </div>
+
+          {paymentError ? (
+            <div className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {paymentError}
+            </div>
+          ) : null}
+
+          {paymentStep ? (
+            <div className="rounded-2xl border border-[#2cbf6f]/30 bg-[#2cbf6f]/10 px-4 py-3 text-sm text-[#b8f5d2]">
+              {paymentStep}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={checkoutLoading}
+              className="btn-outline flex-1 border-white/20 text-white hover:bg-white/10"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={checkoutLoading}
+              className="flex-1 rounded-xl bg-[#22c55e] px-5 py-3 text-sm font-semibold text-[#062914] transition hover:bg-[#34d26c] disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {checkoutLoading ? "Оплачиваем..." : "Оплатить"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ value, label }) {
   return (
     <div className="card p-4">
@@ -850,7 +1043,7 @@ function OrderCard({ order, itemTitle, compact = false }) {
               <span className={`rounded-full border px-3 py-1 text-xs ${status.badge}`}>
                 {status.label}
               </span>
-              {order.payment_mode === "fake-success" && (
+              {["fake-success", "sber-demo"].includes(order.payment_mode) && (
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/8 px-3 py-1 text-xs text-emerald-200">
                   Онлайн-оплата
                 </span>
